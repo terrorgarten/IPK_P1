@@ -10,7 +10,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdarg.h>
-#include <sys/time.h> 
+#include <sys/time.h>
 #include <sys/ioctl.h>
 #include <netdb.h>
 
@@ -23,13 +23,15 @@
 #define HTTP_RESP   "HTTP/1.1 200 OK\r\nContent-Type: text/plain;\r\n\r\n"
 #define HTTP_FAIL   "HTTP/1.1 200 OK\r\nContent-Type: text/plain;\r\n\n400 Bad Request"
 
-#define DEBUG 0 
+#define DEBUG 0
 
+/**
+*Custom debug printing macro
+*/
 #define M_PRINT(fmt) \
     do { if (DEBUG){ fprintf(stderr, "%s\n", fmt); }} while (0)
 
 
-//function to load port, if specified
 int getPort(int argc, const char** argv);
 
 int getLoad();
@@ -47,32 +49,39 @@ int main(int argc, const char** argv){
     //printf("CPU MODEL:\t%s\n", cpuName);
     free(cpuName);
 
+    //init socket
     int socketDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(socketDescr == -1){
         errAndDie("Socket init failed.");
     }
     M_PRINT("Socket initiated");
+
+    //sets options
     int opt = 1;
     setsockopt(socketDescr, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
 
+    //loads address data
     struct sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     address.sin_addr.s_addr = INADDR_ANY;
-    
 
+    //binds the socket to a port
     if(bind(socketDescr, (SA*)&address, sizeof(address)) == -1){
         errAndDie("Bind failed.");
     }
-    printf("Socket bound on port %d\n", port);
+    M_PRINT("Socket bound");
 
+    //starts listening to incoming traffic
     if(listen(socketDescr, 3) < 0){
       errAndDie("Listen failed.");
     }
     M_PRINT("Listening");
 
-    int socketSize = sizeof(SA); 
+    //main loop for accepting requests
+    int socketSize = sizeof(SA);
     int clientSocket;
+    //buffer for handling messages
     char buff[MAX];
     while(1){
         if((clientSocket = accept(socketDescr,(SA*)&address, (socklen_t*)&socketSize)) < 0){
@@ -82,6 +91,7 @@ int main(int argc, const char** argv){
         bzero(buff, MAX);
         read(clientSocket, buff, sizeof(buff));
 
+        //hostname request
         if(!strncmp(buff, HOSTNAME, strlen(HOSTNAME))){
             char* hostname = getHostname();
             printf("%s", hostname);
@@ -92,15 +102,17 @@ int main(int argc, const char** argv){
             bzero(buff, MAX);
             free(hostname);
         }
+        //load request
         else if(!strncmp(buff, LOAD, strlen(LOAD))){
             int load = getLoad();
-            char charload[2];
+            char charload[3]; //FIXME ?????? driv dva ale co kdyz tam bude 100%?
             bzero(buff, MAX);
             sprintf(charload, "%d", load);
-            strcpy(buff, charload); //SIGSEGV
+            strcpy(buff, charload);
             send(clientSocket, buff, MAX, 0);
             bzero(buff, MAX);
         }
+        //cpu ID request
         else if(!strncmp(buff, CPU, strlen(CPU))){
             char* cpu = getCPU();
             bzero(buff, MAX);
@@ -110,26 +122,35 @@ int main(int argc, const char** argv){
             bzero(buff, MAX);
             free(cpu);
         }
+        //unvalid request, answer with 400 Bad request
         else{
             send(clientSocket, HTTP_FAIL, sizeof(HTTP_FAIL), 0);
         }
-        
-
+        //closes socket
         close(clientSocket);
     }
-    
+
     close(socketDescr);
     printf("FREED, CLOSED!\n");
     return 0;
 }
 
+
+/**
+*Custom error printing function - always exits with code 1
+*@param message Error message to print
+*/
 void errAndDie(char* message){
     fprintf(stderr, "RUNTIME ERROR: %s\n", message);
     exit(1);
 }
 
+/**
+*Gets the hostname of local linux machine
+*@return String containing the hostname
+*/
 char* getHostname(){
-    char* hostname = (char*)malloc(256);
+    char* hostname = (char*)malloc(1000);
     if(hostname == NULL){
         fprintf(stderr, "ERROR: Can not allocate memory.");
         exit(1);
@@ -152,10 +173,13 @@ int getPort(int argc, const char** argv){
     return DEFAULTPORT;
 }
 
-
+/**
+*Calculates the current load of the CPU using /proc/stat file
+*@return Returns integer 0-99 representing the percentage of load
+*/
 int getLoad(){
     FILE* fileptr;
-    
+
     if(!(fileptr = fopen("/proc/stat", "r"))){
         fprintf(stderr, "Error - unable to read CPU usage.\n");
         exit(1);
@@ -163,10 +187,10 @@ int getLoad(){
 
     char statline[256];
     fgets(statline, 256, fileptr);
-    
+
     char* token = strtok(statline, " ");
     int preUser, preNice, preSystem, preIdle, preIowait, preIrq, preSoftirq, preSteal;
-    
+
     token = strtok(NULL, " ");
     preUser = atoi(token);
     token = strtok(NULL, " ");
@@ -184,11 +208,11 @@ int getLoad(){
     token = strtok(NULL, " ");
     preSteal = atoi(token);
 
-    sleep(1);
+    sleep(0.5);
 
     rewind(fileptr);
     fgets(statline, 256, fileptr);
-    
+
     int postUser, postNice, postSystem, postIdle, postIowait, postIrq, postSoftirq, postSteal;
 
     token = strtok(statline, " ");
@@ -223,12 +247,16 @@ int getLoad(){
     totalD = postTotal - preTotal;
     idleD = postIdleF - preIdleF;
 
-    fclose(fileptr);    
+    fclose(fileptr);
     return ((totalD - idleD)*100)/totalD;
 }
 
+/**
+*Loads CPU name from /proc/cpuinfo
+*@return string containing the CPU name (1000 chars)
+*/
 char* getCPU(){
-    char* cpuModel = (char*)malloc(256);
+    char* cpuModel = (char*)malloc(1000);
     if(cpuModel == NULL){
         fprintf(stderr, "ERROR: Can not allocate memory.");
         exit(1);
@@ -240,10 +268,10 @@ char* getCPU(){
     }
     char buffer[256];
 
-    while(fgets(buffer, 256, fileptr)!=NULL){
+    while(fgets(buffer, 256, fileptr)!= NULL){
         if(strstr(buffer, "model name") != NULL){
         strcpy(cpuModel, buffer);
-        break;        
+        break;
         }
     }
     strtok(cpuModel, ":");
