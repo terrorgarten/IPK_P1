@@ -10,11 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: getdir
+      run: ls -l
     - name: make
-      working-directory: ./
       run: make
     - name: test
       working-directory: ./
       run: ./test_ipk.sh > tests.out
+      shell: bash
       
       
