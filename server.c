@@ -1,35 +1,50 @@
-#include <netinet/in.h>
+/**
+ * @file server.c
+ * @author Matěj Konopík (xkonop03)
+ * @brief Socket server for system info generating (cpu load, cpu name, hostname)
+ * @version 1.0
+ * @date 2022-03-10
+ * 
+ * @copyright Copyright (c) Matěj Konopík 2022
+ * 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//socket libs
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <signal.h>
 #include <time.h>
+//socket manipulation libs
+#include <arpa/inet.h>
 #include <unistd.h>
-#include <stdarg.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <netdb.h>
 
-#define DEFAULTPORT 1400
+//default port when not explicitly specified via program arg
+#define DEFAULTPORT 10000
+
+//maximum http response size
 #define MAX 1024
 #define SA struct sockaddr
+
+//request and response definitions
 #define HOSTNAME    "GET /hostname"
 #define LOAD        "GET /load"
 #define CPU         "GET /cpu-name"
 #define HTTP_RESP   "HTTP/1.1 200 OK\r\nContent-Type: text/plain;\r\n\r\n"
 #define HTTP_FAIL   "HTTP/1.1 200 OK\r\nContent-Type: text/plain;\r\n\n400 Bad Request"
 
+//debug flag
 #define DEBUG 0
 
 /**
 *Custom debug printing macro
 */
-#define M_PRINT(fmt) \
-    do { if (DEBUG){ fprintf(stderr, "%s\n", fmt); }} while (0)
+#define M_PRINT(fmt)                                                        \
+    do {                                                                    \
+        if (DEBUG){                                                         \
+            fprintf(stderr, "%s\n", fmt);                                   \
+        }                                                                   \
+    } while (0)
+
+
 
 
 int getPort(int argc, const char** argv);
@@ -42,12 +57,11 @@ char* getCPU();
 
 void errAndDie(char* message);
 
+
+
 int main(int argc, const char** argv){
     //load port
     int port = getPort(argc, argv);
-    char* cpuName = getCPU();
-    //printf("CPU MODEL:\t%s\n", cpuName);
-    free(cpuName);
 
     //init socket
     int socketDescr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -56,7 +70,7 @@ int main(int argc, const char** argv){
     }
     M_PRINT("Socket initiated");
 
-    //sets options
+    //sets options - for correct debugging
     int opt = 1;
     setsockopt(socketDescr, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
 
@@ -88,13 +102,15 @@ int main(int argc, const char** argv){
             errAndDie("Accept failed.");
         }
         M_PRINT("Accepted");
+
+        //clear buffer
         bzero(buff, MAX);
+        //read request
         read(clientSocket, buff, sizeof(buff));
 
         //hostname request
         if(!strncmp(buff, HOSTNAME, strlen(HOSTNAME))){
             char* hostname = getHostname();
-            printf("%s", hostname);
             bzero(buff, MAX);
             strcpy(buff, HTTP_RESP);
             strcat(buff, hostname);
@@ -108,7 +124,9 @@ int main(int argc, const char** argv){
             char charload[3]; //FIXME ?????? driv dva ale co kdyz tam bude 100%?
             bzero(buff, MAX);
             sprintf(charload, "%d", load);
+            strncat(charload, "%%", 1);
             strcpy(buff, charload);
+
             send(clientSocket, buff, MAX, 0);
             bzero(buff, MAX);
         }
@@ -137,7 +155,7 @@ int main(int argc, const char** argv){
 
 
 /**
-*Custom error printing function - always exits with code 1
+*@brief Custom error printing function - always exits with code 1
 *@param message Error message to print
 */
 void errAndDie(char* message){
@@ -146,7 +164,7 @@ void errAndDie(char* message){
 }
 
 /**
-*Gets the hostname of local linux machine
+*@brief Gets the hostname of local linux machine
 *@return String containing the hostname
 */
 char* getHostname(){
@@ -160,12 +178,18 @@ char* getHostname(){
         fprintf(stderr, "Error - unable to read hostname.\n");
         exit(1);
     }
-    fgets(hostname, 256, fileptr);
+    fgets(hostname, 1000, fileptr);
     fclose(fileptr);
     return hostname;
 }
 
-
+/**
+ * @brief Get the port number from program arguments
+ * 
+ * @param argc arg count
+ * @param argv arg value
+ * @return (int)port
+ */
 int getPort(int argc, const char** argv){
     if(argc == 2){
         return atoi(argv[1]);
@@ -202,13 +226,14 @@ int getLoad(){
     token = strtok(NULL, " ");
     preIowait = atoi(token);
     token = strtok(NULL, " ");
+
     preIrq = atoi(token);
     token = strtok(NULL, " ");
     preSoftirq = atoi(token);
     token = strtok(NULL, " ");
     preSteal = atoi(token);
 
-    sleep(0.5);
+    sleep(1);
 
     rewind(fileptr);
     fgets(statline, 256, fileptr);
@@ -261,22 +286,27 @@ char* getCPU(){
         fprintf(stderr, "ERROR: Can not allocate memory.");
         exit(1);
     }
+    //reads from proc/cpuinfo file
     FILE* fileptr;
     if(!(fileptr = fopen("/proc/cpuinfo", "r"))){
         fprintf(stderr, "Error - unable to read hostname.\n");
         exit(1);
     }
-    char buffer[256];
+    char buffer[1000];
 
-    while(fgets(buffer, 256, fileptr)!= NULL){
+    //find and read cpu name
+    while(fgets(buffer, 1000, fileptr)!= NULL){
         if(strstr(buffer, "model name") != NULL){
         strcpy(cpuModel, buffer);
         break;
         }
     }
+    //string extraction 
     strtok(cpuModel, ":");
     char* tmp = strtok(NULL, ":");
-    strcpy(cpuModel, tmp); //FIXME OVERLAP!!!
+    strcpy(cpuModel, tmp);
     fclose(fileptr);
+    if (cpuModel[0] == ' ') 
+        memmove(cpuModel, cpuModel+1, strlen(cpuModel));
     return cpuModel;
 }
