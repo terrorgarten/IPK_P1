@@ -10,13 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: cdmake
-      run: cd ../../
     - name: make
+      working-directory: ./
       run: make
-    - name: cdtest
-      run: cd ../../
     - name: test
+      working-directory: ./
       run: ./test_ipk.sh > tests.out
       
       
