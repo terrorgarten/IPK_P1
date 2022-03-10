@@ -47,6 +47,8 @@ remote_machine_hostname
 
 wget or curl can be used in place of GET command.
 
+Try running the test_ipk.sh script for reference outputs on the local machine.
+
 
 ## Implementation details
 The program loads necessary socket and address settings and then loops indefinitely until a request is accepted. Upon acceptance, the program parses the requests and returns response. Then awaits another request in the loop. The program continues to handle requests indefinitely until shut down via CTRL+C/kill on the host machine.
