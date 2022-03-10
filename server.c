@@ -25,11 +25,11 @@
 #define SA struct sockaddr
 
 //request and response definitions
-#define HOSTNAME    "GET /hostname"
-#define LOAD        "GET /load"
-#define CPU         "GET /cpu-name"
+#define HOSTNAME    "GET /hostname "
+#define LOAD        "GET /load "
+#define CPU         "GET /cpu-name "
 #define HTTP_RESP   "HTTP/1.1 200 OK\r\nContent-Type: text/plain;\r\n\r\n"
-#define HTTP_FAIL   "HTTP/1.1 200 OK\r\nContent-Type: text/plain;\r\n\n400 Bad Request"
+#define HTTP_FAIL   "HTTP/1.1 400 Bad Request\r\n"
 
 //debug flag
 #define DEBUG 0
@@ -98,6 +98,7 @@ int main(int argc, const char** argv){
     //buffer for handling messages
     char buff[MAX];
     while(1){
+        M_PRINT("WILE");
         if((clientSocket = accept(socketDescr,(SA*)&address, (socklen_t*)&socketSize)) < 0){
             errAndDie("Accept failed.");
         }
@@ -106,6 +107,7 @@ int main(int argc, const char** argv){
         //clear buffer
         bzero(buff, MAX);
         //read request
+        M_PRINT("reading");
         read(clientSocket, buff, sizeof(buff));
 
         //hostname request
@@ -125,7 +127,14 @@ int main(int argc, const char** argv){
             bzero(buff, MAX);
             sprintf(charload, "%d", load);
             strncat(charload, "%%", 1);
-            strcpy(buff, charload);
+
+            char *tmp = (char*)malloc(sizeof(HTTP_RESP)+10);
+            strcpy(tmp, HTTP_RESP);
+            strcat(tmp, charload);
+            strcpy(buff, tmp);
+            free(tmp);
+
+
 
             send(clientSocket, buff, MAX, 0);
             bzero(buff, MAX);
@@ -149,7 +158,6 @@ int main(int argc, const char** argv){
     }
 
     close(socketDescr);
-    printf("FREED, CLOSED!\n");
     return 0;
 }
 
