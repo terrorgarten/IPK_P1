@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "$(tput setaf 1)MAKING"
+echo "MAKING"
 make
 
 echo "Launching on port 1500"
