@@ -37,11 +37,11 @@ $ ./hinfosvc 4000
 
 On the client machine:
 ```
-$ GET http://[REMOTE MACHINE IP ADDRESS]:3000/load 
+$ GET http://[REMOTE MACHINE IP ADDRESS]:4000/load 
 43%
-$ GET http://[REMOTE MACHINE IP ADDRESS]:3000/cpu-name
+$ GET http://[REMOTE MACHINE IP ADDRESS]:4000/cpu-name
 Intel Core i5-7200 CPU @ 2.50GHz
-$ GET http://[REMOTE MACHINE IP ADDRESS]:3000/hostname
+$ GET http://[REMOTE MACHINE IP ADDRESS]:4000/hostname
 remote_machine_hostname
 ```
 
