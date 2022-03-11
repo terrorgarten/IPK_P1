@@ -1,4 +1,4 @@
-# hinfosvc - minimalistic server for gathering info about remote system
+# hinfosvc - minimalistic server for gathering info about remote/local system
 C language socket server for linux working with HTTP GET requests. Listens on the defined port for HTTP request and sends back coresponding answers. Is easily terminable via CTRL+C from the terminal or kill -9. Default port is set to 10000 but can be changed via a program argument, see Running the program lower.
 
 ## Prerequisites
